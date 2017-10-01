@@ -1,0 +1,116 @@
+---
+# tasks file for roles/ec2-app
+# define o nome da tarefa a ser executada
+- name: Cria o grupo de seguranca para nossa instancia EC2
+  # utiliza o modulo ec2_group
+  ec2_group:
+    # utiliza as variaveis definidas em group_vars/all
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    # define que o grupo de segurança deve existir
+    state: present
+    # utiliza as variaveis definidas em group_vars/all
+    region: "{{ aws_region }}"
+    # utiliza o vpc_id salvo na variavel anteriormente
+    vpc_id: "{{ vpc_id }}"
+    # define o nome do grupo de segurança como app
+    name: "app"
+    # adiciona  descrição ao grupo
+    description: "grupo de seguranca da instancia app"
+    # define as regras de segurança
+    rules:
+      # rotocolo a ser utilizado pelo ssh
+      - proto: tcp
+        # porta de entrada
+        from_port: 22
+        # porta de saida
+        to_port: 22
+        # define o ip destinho
+        cidr_ip: 0.0.0.0/0
+      # rotocolo a ser utilizado pelelo servidor web
+      - proto: tcp
+        # porta de entrada
+        from_port: 80
+        # porta de saida
+        to_port: 80
+        # define o ip destinho
+        cidr_ip: 0.0.0.0/0
+    rules_egress:
+      # define o trefego de saida ara todos os protocolos
+      - proto: all
+        # efine o ip de destino
+        cidr_ip: 0.0.0.0/0
+  # cria uma chamada para consultar as configurações do grupo de segurança
+  register: app_ec2_sg
+  # cria uma tag onde todos os locais que tivem essas tags vão ser executadas
+  tags: [ 'app-ec2' ]
+
+# define o nome da tarefa a ser executada
+- name: Inicia a instancia para nossa aplicacao
+  # utiliza o modulo ec2
+  ec2:
+    # utiliza as variaveis definidas em group_vars/all
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    #utiliza a subnet criada anteriormente
+    vpc_subnet_id: "{{ subnet }}"
+    # consulta a variavel app_ec2_sg para retornar o valor do id do grupo
+    group_id: "{{ app_ec2_sg.group_id }}"
+    # tipo de instancia s ser utilizada - refereciada em defaults/main.yml
+    instance_type: "{{ instance_type }}"
+    # imagem a ser utilizada - refereciada em defaults/main.yml
+    image: "{{ image }}"
+    # aguarda até que a instancia esteja pronta
+    wait: yes
+    # chama o parameto de espera. seu valor esta refereciado em defaults/main.yml
+    exact_count: "{{ count }}"
+    # utilizado em conjunto com o exact_count
+    count_tag:
+      # nome da tag
+      Name: "app"
+    # impeda a associação de ip ublico de forma automatica
+    assign_public_ip: no
+    # define a keypair a ser utilizada para ser asociada a instacia
+    keypair: "{{ keypair_name }}"
+    # define a criação dos discos da instancias
+    volumes:
+      #define o ponto de montagem do disco
+      - device_name: /dev/sda1
+        # define o formato do disco
+        volume_type: gp2
+        # define o valor do disco. refereciada em defaults/main.yml  
+        volume_size: "{{ volume_size }}"
+    # define uma tag para a instancia
+    instance_tags:
+      # ome da tag
+      Name: "app"
+  # cria uma chamada para consultar as configurações da instancia
+  register: app_ec2_instance
+  # cria uma tag onde todos os locais que tivem essas tags vão ser executadas
+  tags: [ 'app-ec2' ]
+
+# define o nome da tarefa a ser executada
+- name: Associa um IP publico com a instancia recem-criada
+  # utiliza o modulo ec2_eip
+  ec2_eip:
+    # utiliza as variaveis definidas em group_vars/all
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    # define que o IP publico deve existir
+    state: present
+    region: "{{ aws_region }}"
+    #aloca um Elastic IP para o VPC
+    in_vpc: yes
+    #reutiliza o Elastic IP se ja não estiver associado
+    reuse_existing_ip_allowed: yes
+    # associa o Elastic IP a instancia que estiver na variavel item.id esta variavel se completa com with_items mais abaixo.
+    device_id: "{{ item.id }}"
+  # cria uma tag onde todos os locais que tivem essas tags vão ser executadas
+  tags: [ 'app-ec2' ]
+  # procura pelas instacias tageadas
+  with_items: "{{ app_ec2_instance.tagged_instances }}"
+  # cria uma chamada para consultar as configurações o Elastic IP
+  register: app_ec2_eip
+  # executa quando estiver sem um IP publico
+  when: item.public_ip == None

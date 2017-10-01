@@ -1,0 +1,62 @@
+---
+# tasks file for roles/docker
+# define o nome da tarefa a ser executada
+- name: instala dependencias Docker
+  # utiliza o modulo apt
+  apt:
+    # define a variavel item para chamar todos os nomes de pacotes presentes na variavel with_items
+    name: "{{ item }}"
+    # define que os pacotes devem existir
+    state: present
+  # variavel que contem os programas a serem instalados
+  with_items:
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - gnupg2
+    - software-properties-common
+    - python-pip
+ 
+# define o nome da tarefa a ser executada 
+- name: instala modulos python que podem ser necessarios
+  # utiliza o modulo pip
+  pip:
+    # define a variavel item para chamar todos os nomes de pacotes presentes na variavel with_items
+    name: "{{ item }}"
+    # define que os pacotes devem existir
+    state: present
+  # variavel que contem os programas a serem instalados
+  with_items:
+    - urllib3
+    - pyOpenSSL
+    - ndg-httpsclient
+    - pyasn1
+
+# define o nome da tarefa a ser executada 
+- name: adiciona a chave de assinatura de pacotes Ubuntu do Docker
+  # utiliza o modulo apt_key
+  apt_key:
+    # url contendo a chave de assinatura para instalação
+    url: https://download.docker.com/linux/ubuntu/gpg
+    # define que a chave deve existir
+    state: present
+
+# define o nome da tarefa a ser executada
+- name: adiciona o repositorio Docker ao sistema
+  # utiliza o modulo apt_repository
+  apt_repository:
+    # adiciona o repositorio do docker 
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable"
+    # define que o repositorio deve existir
+    state: present
+
+# define o nome da tarefa a ser executada      
+- name: instala o pacote docker-ce
+  # utiliza o modulo apt
+  apt:
+    # define o nome do programa para ser instalado
+    name: docker-ce
+    # define que o docker-ce deve existir
+    state: present
+    # executa um apt-get update
+    update_cache: yes

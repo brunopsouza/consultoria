@@ -1,0 +1,101 @@
+---
+# tasks file for roles/vpc
+# define o nome da tarefa a ser executada
+- name: Cria o VPC de nossa aplicacao
+  # utiliza o modulo ec2_vpc_net
+  ec2_vpc_net:
+    # utiliza as variaveis definidas em group_vars/all
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    # define que a vpc deve existir
+    state: present
+    # utiliza as variaveis definidas em group_vars/all
+    region: "{{ aws_region }}"
+    name: "{{ vpc_name }}"
+    cidr_block: "{{ vpc_cidr_block }}"
+  # cria uma chamada para consultar as configurações da vpc  
+  register: my_vpc
+
+# define o nome da tarefa a ser executada
+- name: Salva o ID do VPC criado na variavel vpc_id
+  # utiliza o modulo set_fact para consultar uma variavel
+  set_fact:
+    # chama a variavel my_vpc, consultta o id e salva em vpc_id
+    vpc_id: "{{ my_vpc.vpc.id }}"
+
+# define o nome da tarefa a ser executada
+- name: Cria a subnet publica 1
+  # utiliza o modulo ec2_vpc_net
+  ec2_vpc_subnet:
+    # utiliza as variaveis definidas em group_vars/all
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    # define que a subnet deve existir
+    state: present
+    # utiliza as variaveis definidas em group_vars/all
+    region: "{{ aws_region }}"
+    # utiliza o vpc_id salvo na variavel anteriormente
+    vpc_id: "{{ vpc_id }}"
+    cidr: "{{ public_subnet_1_cidr }}"
+    az: "{{ aws_region }}{{ aws_region_az }}"
+    # define uma nome/tag para a subnet
+    resource_tags:
+      # nome/tag a ser dado a subnet
+      Name: "public-subnet"
+  # cria uma chamada para consultar as configurações da subnet     
+  register: my_public_subnet
+
+# define o nome da tarefa a ser executada
+- name: Salva o ID da subnet publica na variavel public_subnet_id
+  # utiliza o modulo set_fact para consultar uma variavel
+  set_fact:
+    # chama a variavel my_public_subnet e consulta o id da subnet salvando o resultado em public_subnet_id
+    public_subnet_id: "{{ my_public_subnet.subnet.id }}"
+
+# define o nome da tarefa a ser executada
+- name: Cria um gateway de Internet em nosso VPC
+  # utiliza o modulo ec2_vpc_igw
+  ec2_vpc_igw:
+    # utiliza as variaveis definidas em group_vars/all
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    # define que o gateway deve existir
+    state: present
+    region: "{{ aws_region }}"
+    # utiliza o vpc_id salvo na variavel anteriormente
+    vpc_id: "{{ vpc_id }}"
+  # cria uma chamada para consultar as configurações do gateway  
+  register: my_vpc_igw
+
+# define o nome da tarefa a ser executada
+- name: Salva o ID do gateway de Internet na variavel igw_id
+  # utiliza o modulo set_fact para consultar uma variavel
+  set_fact:
+    # consulta ca variavel my_vpc_igw para pegar o id do gatway e salva o resultado em igw_id
+    igw_id: "{{ my_vpc_igw.gateway_id }}"
+
+# define o nome da tarefa a ser executada
+- name: Cria uma rota default na subnet publica, apontando para nosso gateway de Internet
+  # utiliza o modulo ec2_vpc_route_table 
+  ec2_vpc_route_table:
+    # utiliza as variaveis definidas em group_vars/all
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+     # define que a rota deve existir
+    state: present
+    region: "{{ aws_region }}"
+    # utiliza o vpc_id salvo na variavel anteriormente
+    vpc_id: "{{ vpc_id }}"
+    # define uma nome/tag para a rota
+    tags:
+      # define o nome da rota
+      Name: "Public"
+    # define a subnet que sera associada a tabela de rotas através da variavel public_subnet_id que foi criada anteriormente 
+    subnets:
+      - "{{ public_subnet_id }}"
+    # define as rotas
+    routes:
+      # define o destio da rota
+      - dest: "0.0.0.0/0"
+        # define o id do gateway a traves da variavel idw_id criada anteriormente
+        gateway_id: "{{ igw_id }}"

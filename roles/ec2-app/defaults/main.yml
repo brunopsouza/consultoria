@@ -1,0 +1,12 @@
+---
+# defaults file for roles/ec2-app
+# define o ID da imagem que deve ser usada de acordo com a região
+image: "ami-6e1a0117"
+# define o tipo de instancia
+instance_type: "t2.micro"
+# define a quantidade de instancia a ser criada
+count: "1"
+#define o tamanho do disco
+volume_size: "20"
+# define a subnet que deve ser utilizada
+subnet: "{{ public_subnet_id }}"

@@ -1,0 +1,55 @@
+---
+# tasks file for roles/wordpress
+# define o nome da tarefa a ser executada
+- name: instala a biblioteca para gerenciamento docker
+  # utiliza o modulo apt
+  apt:
+    # intala o python-docker
+    name: python-docker
+
+# define o nome da tarefa a ser executada
+- name: cria o diretório onde a base de dados MySQL sera salva
+  # utiliza o modulo file
+  file:
+    # cria uma pasta chamada dados-banco
+    path: /dados-banco
+    # define que o diretorio deve existir
+    state: directory
+    # define o dono como root
+    owner: root
+    # define o grupo da pasta como root
+    group: root
+    # atribui a permissão 775 a pasta dados-banco
+    mode: 0755
+
+# define o nome da tarefa a ser executada
+- name: cria container MySQL, com dados salvos na pasta /dados-banco
+  # executa o modulo docker_container
+  docker_container:
+    # define o nome do conteiner
+    name: "banco"
+    # define o nome e versão da imagem a ser baixada pelo docker
+    image: "mysql:5.7"
+    # chama a variavel de ambiente
+    env:
+      # define uma senha para o banco
+      MYSQL_ROOT_PASSWORD: password
+    # chama a variavel para gerenciar os volumes
+    volumes:
+      # define um link entre a pasta e o container para salvar os arquivo de dentro do container /var/lib/mysql na pasta dados-banco
+      - /dados-banco:/var/lib/mysql
+
+# define o nome da tarefa a ser executada
+- name: cria container do wordpress
+  # executa o modulo docker_container
+  docker_container:
+    # define o nome do conteiner
+    name: "meublog"
+    # define o nome e versão da imagem a ser baixada pelo docker ( se não é iformado a verão, a ultima é baixada)
+    image: "wordpress"
+    # cria um link de conexão entre o banco e o wordpress
+    links:
+      - "banco:mysql"
+    # expõe a porta 80
+    ports:
+      - "80:80"

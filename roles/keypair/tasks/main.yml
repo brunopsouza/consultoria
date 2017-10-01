@@ -1,0 +1,17 @@
+---
+# tasks file for roles/keypair
+# nome da tarefa a ser exeutada
+- name: Cria um keypair na AWS a partir de uma chave publica
+  # modulo a ser usado para a criação das chaves
+  ec2_key:
+  # Utiliza as configurações em group_vars/all
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    region: "{{ aws_region }}"
+    name: "{{ keypair_name }}"
+    # chave ublica a ser utilizada
+    key_material: "{{ ssh_pubkey }}"
+    # desabilita a substituição da chave
+    force: false
+    # cria o arquivo de chaves ou remove com o parameto absent
+    state: present
